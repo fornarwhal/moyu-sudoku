@@ -1,0 +1,9 @@
+# 安装包与构建产物
+*.vsix
+node_modules/
+
+# 编辑器/系统
+.vscode/
+*.log
+Thumbs.db
+.DS_Store

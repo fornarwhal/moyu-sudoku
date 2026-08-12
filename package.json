@@ -1,0 +1,97 @@
+{
+	"name": "moyu-sudoku",
+	"displayName": "摸鱼数独（Moyu Sudoku）",
+	"description": "上班摸鱼神器：伪装成项目状态看板的 VSCode 数独小游戏 / Stealth Sudoku (moyu) disguised as a project dashboard",
+	"version": "0.2.0",
+	"publisher": "local",
+	"keywords": [
+		"数独",
+		"sudoku",
+		"摸鱼",
+		"moyu",
+		"stealth",
+		"隐藏",
+		"小游戏",
+		"game"
+	],
+	"engines": {
+		"vscode": "^1.85.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"main": "./extension.js",
+	"activationEvents": [
+		"onView:moyuSudoku.view",
+		"onCommand:moyuSudoku.toggle"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "moyuSudoku.toggle",
+				"title": "切换数据视图",
+				"category": "项目状态"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "moyuSudoku.toggle",
+				"key": "ctrl+alt+s"
+			}
+		],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "moyu-sudoku",
+					"title": "项目状态",
+					"icon": "media/icon.svg"
+				}
+			]
+		},
+		"views": {
+			"moyu-sudoku": [
+				{
+					"id": "moyuSudoku.view",
+					"name": "项目状态",
+					"type": "webview"
+				}
+			]
+		},
+		"configuration": {
+			"title": "项目状态",
+			"properties": {
+				"moyuSudoku.hideKey": {
+					"type": "string",
+					"enum": [
+						"Escape",
+						"F12",
+						"Backquote"
+					],
+					"default": "Escape",
+					"description": "数独界面返回看板/关闭独立窗口的按键"
+				},
+				"moyuSudoku.ratingThresholds": {
+					"type": "object",
+					"default": {
+						"easy": {
+							"s": 180,
+							"a": 300,
+							"b": 600
+						},
+						"medium": {
+							"s": 300,
+							"a": 480,
+							"b": 900
+						},
+						"hard": {
+							"s": 480,
+							"a": 900,
+							"b": 1500
+						}
+					},
+					"description": "各难度评级阈值（秒）：s/a/b 分别对应 S/A/B 级的最长时间"
+				}
+			}
+		}
+	}
+}
