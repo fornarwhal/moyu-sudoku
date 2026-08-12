@@ -2,6 +2,8 @@
 
 伪装成项目状态看板的 VSCode 数独小游戏 / A stealth sudoku disguised as a project status dashboard in VS Code.
 
+GitHub 仓库 / Repository: https://github.com/fornarwhal/moyu-sudoku
+
 ## 功能 / Features
 
 - 三档难度（简单 / 中等 / 困难） / 3 difficulty levels
