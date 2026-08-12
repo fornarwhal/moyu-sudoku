@@ -16,9 +16,9 @@ GitHub 仓库 / Repository: https://github.com/fornarwhal/moyu-sudoku
 
 ## 界面预览 / Screenshots
 
-![项目状态看板 / Dashboard](media/screenshots/dashboard.png)
+![项目状态看板 / Dashboard](https://raw.githubusercontent.com/fornarwhal/moyu-sudoku/main/media/screenshots/dashboard.png)
 
-![数独界面 / Sudoku](media/screenshots/sudoku.png)
+![数独界面 / Sudoku](https://raw.githubusercontent.com/fornarwhal/moyu-sudoku/main/media/screenshots/sudoku.png)
 
 ## 安装 / Install
 
