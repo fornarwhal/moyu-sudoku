@@ -36,3 +36,7 @@
 ## 开发 / Development
 
 克隆仓库后在 VSCode 按 `F5` 启动调试 / Clone the repo and press `F5` to debug.
+
+## 许可 / License
+
+MIT
