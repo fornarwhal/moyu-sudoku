@@ -3,8 +3,9 @@
 	"displayName": "摸鱼数独（Moyu Sudoku）",
 	"description": "上班摸鱼神器：伪装成项目状态看板的 VSCode 数独小游戏 / Stealth Sudoku (moyu) disguised as a project dashboard",
 	"version": "0.0.1",
-	"publisher": "local",
+	"publisher": "fornarwhal",
 	"license": "MIT",
+	"icon": "media/icon.png",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/fornarwhal/moyu-sudoku.git"
@@ -32,6 +33,7 @@
 		"package.json",
 		"README.md",
 		"LICENSE",
+		"media/icon.png",
 		"media/icon.svg"
 	],
 	"activationEvents": [
