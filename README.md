@@ -14,7 +14,7 @@
 
 ## 安装 / Install
 
-- 从 VSIX 安装：`Ctrl+Shift+P` → **Extensions: Install from VSIX...** 选择 `摸鱼数独-0.2.0.vsix`
+- 从 VSIX 安装：`Ctrl+Shift+P` → **Extensions: Install from VSIX...** 选择 `摸鱼数独-1.0.0.vsix`
 - 从文件夹安装：`Ctrl+Shift+P` → **Developer: Install Extension from Location...** 选择本目录
 
 ## 快捷键 / Shortcuts
