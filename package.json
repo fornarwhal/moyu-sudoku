@@ -34,7 +34,8 @@
 		"README.md",
 		"LICENSE",
 		"media/icon.png",
-		"media/icon.svg"
+		"media/icon.svg",
+		"media/screenshots/*.png"
 	],
 	"activationEvents": [
 		"onView:moyuSudoku.view",

@@ -12,6 +12,12 @@
 - 自动存档 / Auto save
 - 跟随 VSCode 主题 / Theme-aware UI
 
+## 界面预览 / Screenshots
+
+![项目状态看板 / Dashboard](media/screenshots/dashboard.png)
+
+![数独界面 / Sudoku](media/screenshots/sudoku.png)
+
 ## 安装 / Install
 
 - 从 VSIX 安装：`Ctrl+Shift+P` → **Extensions: Install from VSIX...** 选择 `摸鱼数独.vsix`
