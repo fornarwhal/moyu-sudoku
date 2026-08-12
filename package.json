@@ -25,6 +25,13 @@
 		"Other"
 	],
 	"main": "./extension.js",
+	"files": [
+		"extension.js",
+		"generator.js",
+		"package.json",
+		"README.md",
+		"media/icon.svg"
+	],
 	"activationEvents": [
 		"onView:moyuSudoku.view",
 		"onCommand:moyuSudoku.toggle"
