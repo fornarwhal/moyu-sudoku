@@ -423,6 +423,16 @@ class SudokuProvider {
 		font-size: 12px;
 		color: var(--vscode-testing-iconPassed, #89d185);
 	}
+	#game {
+		display: flex;
+		flex-direction: column;
+	}
+	.game-footer {
+		flex: 1;
+		margin-top: 12px;
+		padding-top: 10px;
+		border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
+	}
 	#board {
 		display: grid;
 		grid-template-columns: repeat(9, 1fr);
@@ -551,6 +561,15 @@ class SudokuProvider {
 		</div>
 		<div id="status" class="status"></div>
 		<div id="board"></div>
+		<div id="gameFooter" class="game-footer">
+			<div class="section-title">最近校验记录</div>
+			<table class="ci-table">
+				<tr><th>批次</th><th>数据量</th><th>状态</th><th>耗时</th></tr>
+				<tr><td id="logBatch1">B-1024</td><td id="logSize1">12.6 MB</td><td class="ok" id="logStatus1">通过</td><td id="logTime1">3m42s</td></tr>
+				<tr><td id="logBatch2">B-1023</td><td id="logSize2">8.1 MB</td><td class="ok" id="logStatus2">通过</td><td id="logTime2">1m58s</td></tr>
+				<tr><td id="logBatch3">B-1022</td><td id="logSize3">20.3 MB</td><td class="warn" id="logStatus3">校验中</td><td id="logTime3">—</td></tr>
+			</table>
+		</div>
 	</div>
 <script>
 (function () {
@@ -711,6 +730,7 @@ class SudokuProvider {
 			updateBoardScale();
 			gameEl.focus({ preventScroll: true });
 			startTimer();
+			randomizeGameFooter();
 		} else {
 			stopTimer();
 			resetConfirm();
@@ -858,6 +878,23 @@ class SudokuProvider {
 			statusEl2.textContent = s;
 			statusEl2.className = s === '通过' ? 'ok' : 'warn';
 			timeEl.textContent = s === '通过' ? times[Math.floor(Math.random() * times.length)] : '—';
+		}
+	}
+
+	function randomizeGameFooter() {
+		const batches = ['B-1024', 'B-1023', 'B-1022', 'B-1021', 'B-1020'];
+		const sizes = ['12.6 MB', '8.1 MB', '20.3 MB', '5.7 MB', '16.4 MB'];
+		const statuses = ['通过', '通过', '校验中', '通过', '排队中'];
+		const times = ['3m42s', '1m58s', '—', '4m16s', '—'];
+		for (let i = 1; i <= 3; i++) {
+			const idx = Math.floor(Math.random() * batches.length);
+			document.getElementById('logBatch' + i).textContent = batches[idx];
+			document.getElementById('logSize' + i).textContent = sizes[idx];
+			const s = statuses[Math.floor(Math.random() * statuses.length)];
+			const statusEl = document.getElementById('logStatus' + i);
+			statusEl.textContent = s;
+			statusEl.className = s === '通过' ? 'ok' : 'warn';
+			document.getElementById('logTime' + i).textContent = s === '通过' ? times[Math.floor(Math.random() * times.length)] : '—';
 		}
 	}
 
