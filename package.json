@@ -2,7 +2,7 @@
 	"name": "moyu-sudoku",
 	"displayName": "摸鱼数独（Moyu Sudoku）",
 	"description": "上班摸鱼神器：伪装成项目状态看板的 VSCode 数独小游戏 / Stealth Sudoku (moyu) disguised as a project dashboard",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"publisher": "fornarwhal",
 	"license": "MIT",
 	"icon": "media/icon.png",
@@ -85,6 +85,16 @@
 					],
 					"default": "Escape",
 					"description": "数独界面返回看板/关闭独立窗口的按键"
+				},
+				"moyuSudoku.autoHideOnBlur": {
+					"type": "boolean",
+					"default": false,
+					"description": "VSCode 窗口失去焦点时自动切回项目状态看板"
+				},
+				"moyuSudoku.conflictHighlight": {
+					"type": "boolean",
+					"default": true,
+					"description": "填数时即时浅色标出与同行/列/宫重复的数字"
 				},
 				"moyuSudoku.ratingThresholds": {
 					"type": "object",

@@ -30,6 +30,15 @@ class SudokuProvider {
 				}
 			})
 		);
+		context.subscriptions.push(
+			vscode.window.onDidChangeWindowState((windowState) => {
+				if (!windowState.focused && vscode.workspace.getConfiguration('moyuSudoku').get('autoHideOnBlur', false)) {
+					this._broadcast({
+						type: 'showDashboard'
+					});
+				}
+			})
+		);
 	}
 
 	resolveWebviewView(webviewView) {
@@ -144,6 +153,8 @@ class SudokuProvider {
 		}
 		return {
 			hideKey: config.get('hideKey', 'Escape'),
+			autoHideOnBlur: config.get('autoHideOnBlur', false),
+			conflictHighlight: config.get('conflictHighlight', true),
 			ratingThresholds: ratingThresholds
 		};
 	}
@@ -462,6 +473,9 @@ class SudokuProvider {
 	.cell.hint {
 		background: var(--vscode-editor-selectionBackground, rgba(38, 79, 120, 0.4));
 	}
+	.cell.conflict {
+		background: var(--vscode-inputValidation-warningBackground, rgba(204, 167, 0, 0.18));
+	}
 	.cell.error {
 		background: var(--vscode-inputValidation-errorBackground, rgba(248, 81, 73, 0.2));
 	}
@@ -585,6 +599,7 @@ class SudokuProvider {
 	let noteMode = false;
 	let sameHighlight = true;
 	let checkErrors = false;
+	let conflictHighlight = true;
 	let timerSeconds = 0;
 	let timerInterval = null;
 	let completed = false;
@@ -594,6 +609,7 @@ class SudokuProvider {
 	let confirmTimer = null;
 	let history = [];
 	let redoStack = [];
+	let cellEls = null;
 	const ratingDefaults = {
 		easy: { s: 180, a: 300, b: 600 },
 		medium: { s: 300, a: 480, b: 900 },
@@ -907,70 +923,111 @@ class SudokuProvider {
 		}
 	}
 
-	function render() {
-		if (!state) {
-			boardEl.innerHTML = '';
+	function ensureCells() {
+		if (cellEls && cellEls.length === 81 && boardEl.childElementCount === 81) {
 			return;
 		}
-		const frag = document.createDocumentFragment();
+		boardEl.innerHTML = '';
+		cellEls = [];
 		for (let i = 0; i < 81; i++) {
-			const row = Math.floor(i / 9);
-			const col = i % 9;
 			const cell = document.createElement('div');
 			cell.className = 'cell';
-			if ((Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 1) {
-				cell.classList.add('shade');
-			}
-			if (col % 3 === 2) {
-				cell.classList.add('br');
-			}
-			if (row % 3 === 2) {
-				cell.classList.add('bb');
-			}
 			cell.dataset.index = String(i);
 			cell.addEventListener('click', function () {
 				selectCell(i);
 			});
+			boardEl.appendChild(cell);
+			cellEls.push(cell);
+		}
+	}
 
-			if (state.puzzle[i] !== 0) {
-				const span = document.createElement('span');
-				span.className = 'num clue';
-				span.textContent = String(state.puzzle[i]);
-				cell.appendChild(span);
-			} else if (state.values[i] !== 0) {
-				const span = document.createElement('span');
-				span.className = 'num';
-				if (checkErrors && state.values[i] !== state.solution[i]) {
-					cell.classList.add('error');
-				}
-				span.textContent = String(state.values[i]);
-				cell.appendChild(span);
-			} else if (state.notes[i] && state.notes[i].length) {
-				const notes = document.createElement('div');
-				notes.className = 'notes';
-				for (let n = 1; n <= 9; n++) {
-					const d = document.createElement('span');
-					d.textContent = state.notes[i].indexOf(n) >= 0 ? String(n) : '';
-					notes.appendChild(d);
-				}
-				cell.appendChild(notes);
+	function hasConflict(i) {
+		if (!state || state.puzzle[i] !== 0 || state.values[i] === 0) {
+			return false;
+		}
+		const v = state.values[i];
+		const row = Math.floor(i / 9);
+		const col = i % 9;
+		for (let c = 0; c < 9; c++) {
+			const j = row * 9 + c;
+			if (j !== i && state.values[j] === v) {
+				return true;
 			}
+		}
+		for (let r = 0; r < 9; r++) {
+			const j = r * 9 + col;
+			if (j !== i && state.values[j] === v) {
+				return true;
+			}
+		}
+		const boxRow = Math.floor(row / 3) * 3;
+		const boxCol = Math.floor(col / 3) * 3;
+		for (let r = 0; r < 3; r++) {
+			for (let c = 0; c < 3; c++) {
+				const j = (boxRow + r) * 9 + (boxCol + c);
+				if (j !== i && state.values[j] === v) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 
+	function setCellContent(i) {
+		const cell = cellEls[i];
+		let html = '';
+		if (state.puzzle[i] !== 0) {
+			html = '<span class="num clue">' + state.puzzle[i] + '</span>';
+		} else if (state.values[i] !== 0) {
+			html = '<span class="num">' + state.values[i] + '</span>';
+		} else if (state.notes[i] && state.notes[i].length) {
+			html = '<div class="notes">';
+			for (let n = 1; n <= 9; n++) {
+				html += '<span>' + (state.notes[i].indexOf(n) >= 0 ? String(n) : '') + '</span>';
+			}
+			html += '</div>';
+		}
+		cell.innerHTML = html;
+	}
+
+	function render() {
+		if (!state) {
+			boardEl.innerHTML = '';
+			cellEls = null;
+			return;
+		}
+		ensureCells();
+		const current = selected >= 0 && state.values[selected] !== 0 ? state.values[selected] : 0;
+		for (let i = 0; i < 81; i++) {
+			const cell = cellEls[i];
+			let cls = 'cell';
+			if ((Math.floor(Math.floor(i / 9) / 3) + Math.floor((i % 9) / 3)) % 2 === 1) {
+				cls += ' shade';
+			}
+			if (i % 9 % 3 === 2) {
+				cls += ' br';
+			}
+			if (Math.floor(i / 9) % 3 === 2) {
+				cls += ' bb';
+			}
 			if (i === selected) {
-				cell.classList.add('selected');
+				cls += ' selected';
 			}
-			const current = selected >= 0 && state.values[selected] !== 0 ? state.values[selected] : 0;
 			if (sameHighlight && selected >= 0 && current !== 0 && state.values[i] === current) {
-				cell.classList.add('same');
+				cls += ' same';
 			}
 			if (sameHighlight && hintIndex >= 0 && i === hintIndex) {
-				cell.classList.add('hint');
+				cls += ' hint';
 			}
-
-			frag.appendChild(cell);
+			if (conflictHighlight && hasConflict(i)) {
+				cls += ' conflict';
+			}
+			if (checkErrors && state.puzzle[i] === 0 && state.values[i] !== 0 && state.values[i] !== state.solution[i]) {
+				cls += ' error';
+			}
+			cell.className = cls;
+			setCellContent(i);
 		}
-		boardEl.innerHTML = '';
-		boardEl.appendChild(frag);
 	}
 
 	function selectCell(i) {
@@ -1003,6 +1060,36 @@ class SudokuProvider {
 		} else {
 			state.values[selected] = n;
 			state.notes[selected] = [];
+			const row = Math.floor(selected / 9);
+			const col = selected % 9;
+			for (let c = 0; c < 9; c++) {
+				const j = row * 9 + c;
+				if (j !== selected && state.notes[j] && state.notes[j].length) {
+					state.notes[j] = state.notes[j].filter(function (x) {
+						return x !== n;
+					});
+				}
+			}
+			for (let r = 0; r < 9; r++) {
+				const j = r * 9 + col;
+				if (j !== selected && state.notes[j] && state.notes[j].length) {
+					state.notes[j] = state.notes[j].filter(function (x) {
+						return x !== n;
+					});
+				}
+			}
+			const boxRow = Math.floor(row / 3) * 3;
+			const boxCol = Math.floor(col / 3) * 3;
+			for (let r = 0; r < 3; r++) {
+				for (let c = 0; c < 3; c++) {
+					const j = (boxRow + r) * 9 + (boxCol + c);
+					if (j !== selected && state.notes[j] && state.notes[j].length) {
+						state.notes[j] = state.notes[j].filter(function (x) {
+							return x !== n;
+						});
+					}
+				}
+			}
 		}
 		afterEdit();
 	}
@@ -1177,11 +1264,15 @@ class SudokuProvider {
 		} else if (msg.type === 'settings') {
 			if (msg.settings) {
 				hideKey = msg.settings.hideKey || 'Escape';
+				conflictHighlight = msg.settings.conflictHighlight !== false;
 				if (msg.settings.ratingThresholds) {
 					ratingThresholds = msg.settings.ratingThresholds;
 				}
 				if (completed) {
 					statusEl.textContent = getCompletionText();
+				}
+				if (state) {
+					render();
 				}
 			}
 		} else if (msg.type === 'panelInfo') {

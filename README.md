@@ -41,7 +41,15 @@ GitHub 仓库 / Repository: https://github.com/fornarwhal/moyu-sudoku
 ## 设置 / Settings
 
 - `moyuSudoku.hideKey`：返回看板 / 关闭独立窗口的按键（`Escape` / `F12` / `` ` ``）
+- `moyuSudoku.autoHideOnBlur`：VSCode 窗口失去焦点时自动切回看板（默认关闭）
+- `moyuSudoku.conflictHighlight`：填数即时浅色标出与同行/列/宫重复的数字（默认开启）
 - `moyuSudoku.ratingThresholds`：各难度评级阈值（秒）
+
+## 维护 / Maintenance
+
+- CI：推送后 GitHub Actions 自动运行语法检查与数独生成器测试
+- 自动发布：仓库 Settings → Secrets and variables → Actions 添加 `VSCE_PAT`（Azure DevOps 令牌，有效期选一年）后，在 Actions 页手动运行 **Publish to Marketplace**，自动打包、发布并更新 Release 附件
+- 手动发布：先升 `package.json` 版本号，再执行 `vsce publish`
 
 ## 开发 / Development
 
