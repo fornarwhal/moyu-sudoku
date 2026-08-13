@@ -137,13 +137,14 @@ class SudokuProvider {
 	_getSettings() {
 		const config = vscode.workspace.getConfiguration('moyuSudoku');
 		const defaults = {
+			beginner: { s: 120, a: 240, b: 480 },
 			easy: { s: 180, a: 300, b: 600 },
 			medium: { s: 300, a: 480, b: 900 },
 			hard: { s: 480, a: 900, b: 1500 }
 		};
 		const raw = config.get('ratingThresholds', {});
 		const ratingThresholds = {};
-		for (const difficulty of ['easy', 'medium', 'hard']) {
+		for (const difficulty of ['beginner', 'easy', 'medium', 'hard']) {
 			const t = raw[difficulty] || {};
 			ratingThresholds[difficulty] = {
 				s: typeof t.s === 'number' ? t.s : defaults[difficulty].s,
@@ -561,9 +562,10 @@ class SudokuProvider {
 		<div class="toolbar">
 			<div class="toolbar-top">
 				<select id="difficulty">
-					<option value="easy">批次：简单</option>
-					<option value="medium" selected>批次：中等</option>
-					<option value="hard">批次：困难</option>
+					<option value="beginner">批次：唯一数</option>
+					<option value="easy">批次：隐藏单数</option>
+					<option value="medium" selected>批次：数对区块</option>
+					<option value="hard">批次：试数推理</option>
 				</select>
 				<button id="panelBtn">独立</button>
 				<span id="timer" class="timer">00:00</span>
@@ -611,6 +613,7 @@ class SudokuProvider {
 	let redoStack = [];
 	let cellEls = null;
 	const ratingDefaults = {
+		beginner: { s: 120, a: 240, b: 480 },
 		easy: { s: 180, a: 300, b: 600 },
 		medium: { s: 300, a: 480, b: 900 },
 		hard: { s: 480, a: 900, b: 1500 }

@@ -6,7 +6,7 @@ GitHub 仓库 / Repository: https://github.com/fornarwhal/moyu-sudoku
 
 ## 功能 / Features
 
-- 三档难度（简单 / 中等 / 困难） / 3 difficulty levels
+- 四档难度（唯一数 / 隐藏单数 / 数对区块 / 试数推理，按解题技巧分级） / 4 technique-based difficulty levels (Naked Singles / Hidden Singles / Locked Candidates & Pairs / Guessing)
 - 伪装看板 + 老板键 / Fake dashboard + boss key
 - 独立可缩放窗口 / Resizable standalone window
 - 撤销 / 重做 / Undo & redo

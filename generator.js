@@ -1,16 +1,21 @@
 'use strict';
 
 /*
- * 数独生成器（标准回溯算法）
- * 思路：随机生成完整解 -> 按随机顺序挖空 -> 每步校验唯一解。
- * 该算法为通用的公开实现思路，无外部依赖，可自由使用。
+ * 数独生成与难度分级（零依赖）
+ * 生成：随机完整解 -> 随机挖空（保持唯一解）-> 按目标技巧档位停止。
+ * 分级：候选数传播式技巧求解器，返回解题所需的最高技巧层级 T1~T4。
+ *   T1 唯一数 / T2 隐藏单数 / T3 区块数对与三数集 / T4 X-Wing 或需回溯
  */
 
-const DIFFICULTY_CLUES = {
-	easy: 40,
-	medium: 32,
-	hard: 26
+const TIER_BY_DIFFICULTY = {
+	beginner: 1,
+	easy: 2,
+	medium: 3,
+	hard: 4
 };
+const MIN_CLUES = 24;
+const MAX_CLUES = 45;
+const MAX_ATTEMPTS = 100;
 
 function shuffle(list) {
 	const a = list.slice();
@@ -125,48 +130,480 @@ function countSolutions(grid, limit) {
 	return count;
 }
 
-function generatePuzzle(difficulty) {
-	const key = DIFFICULTY_CLUES[difficulty] ? difficulty : 'medium';
-	const target = DIFFICULTY_CLUES[key];
+function countFilled(grid) {
+	let n = 0;
+	for (let i = 0; i < 81; i++) {
+		if (grid[i] !== 0) {
+			n++;
+		}
+	}
+	return n;
+}
 
-	for (;;) {
+function buildCandidates(grid) {
+	const cands = [];
+	for (let i = 0; i < 81; i++) {
+		cands.push(grid[i] !== 0 ? [] : candidates(grid, i));
+	}
+	return cands;
+}
+
+function sameSet(a, b) {
+	if (a.length !== b.length) {
+		return false;
+	}
+	for (let i = 0; i < a.length; i++) {
+		if (a[i] !== b[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+function classifyTier(puzzle) {
+	const grid = puzzle.slice();
+	const cands = buildCandidates(grid);
+	let maxTier = 1;
+
+	function place(i, v) {
+		grid[i] = v;
+		cands[i] = [];
+		const row = Math.floor(i / 9);
+		const col = i % 9;
+		for (let c = 0; c < 9; c++) {
+			const j = row * 9 + c;
+			if (j !== i && cands[j]) {
+				const k = cands[j].indexOf(v);
+				if (k >= 0) {
+					cands[j].splice(k, 1);
+				}
+			}
+		}
+		for (let r = 0; r < 9; r++) {
+			const j = r * 9 + col;
+			if (j !== i && cands[j]) {
+				const k = cands[j].indexOf(v);
+				if (k >= 0) {
+					cands[j].splice(k, 1);
+				}
+			}
+		}
+		const boxRow = Math.floor(row / 3) * 3;
+		const boxCol = Math.floor(col / 3) * 3;
+		for (let r = 0; r < 3; r++) {
+			for (let c = 0; c < 3; c++) {
+				const j = (boxRow + r) * 9 + (boxCol + c);
+				if (j !== i && cands[j]) {
+					const k = cands[j].indexOf(v);
+					if (k >= 0) {
+						cands[j].splice(k, 1);
+					}
+				}
+			}
+		}
+	}
+
+	const units = [];
+	for (let r = 0; r < 9; r++) {
+		units.push(Array.from({ length: 9 }, (_, c) => r * 9 + c));
+	}
+	for (let c = 0; c < 9; c++) {
+		units.push(Array.from({ length: 9 }, (_, r) => r * 9 + c));
+	}
+	for (let br = 0; br < 3; br++) {
+		for (let bc = 0; bc < 3; bc++) {
+			const u = [];
+			for (let r = 0; r < 3; r++) {
+				for (let c = 0; c < 3; c++) {
+					u.push((br * 3 + r) * 9 + (bc * 3 + c));
+				}
+			}
+			units.push(u);
+		}
+	}
+
+	function applyHiddenSingles() {
+		let found = false;
+		for (const unit of units) {
+			const empties = unit.filter((i) => grid[i] === 0);
+			for (let d = 1; d <= 9; d++) {
+				const hits = empties.filter((i) => cands[i].indexOf(d) >= 0);
+				if (hits.length === 1) {
+					place(hits[0], d);
+					found = true;
+				}
+			}
+		}
+		return found;
+	}
+
+	function applyNakedPairs() {
+		let found = false;
+		for (const unit of units) {
+			const empties = unit.filter((i) => grid[i] === 0);
+			for (let a = 0; a < empties.length; a++) {
+				for (let b = a + 1; b < empties.length; b++) {
+					const i = empties[a];
+					const j = empties[b];
+					if (cands[i].length === 2 && sameSet(cands[i], cands[j])) {
+						for (const k of unit) {
+							if (k !== i && k !== j && grid[k] === 0) {
+								const before = cands[k].length;
+								cands[k] = cands[k].filter((n) => cands[i].indexOf(n) < 0);
+								if (cands[k].length !== before) {
+									found = true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return found;
+	}
+
+	function applyHiddenPairs() {
+		let found = false;
+		for (const unit of units) {
+			const empties = unit.filter((i) => grid[i] === 0);
+			for (let d1 = 1; d1 <= 9; d1++) {
+				for (let d2 = d1 + 1; d2 <= 9; d2++) {
+					const p1 = empties.filter((i) => cands[i].indexOf(d1) >= 0);
+					const p2 = empties.filter((i) => cands[i].indexOf(d2) >= 0);
+					if (p1.length === 2 && sameSet(p1, p2)) {
+						for (const i of p1) {
+							const before = cands[i].length;
+							cands[i] = cands[i].filter((n) => n === d1 || n === d2);
+							if (cands[i].length !== before) {
+								found = true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return found;
+	}
+
+	function applyPointing() {
+		let found = false;
+		for (let br = 0; br < 3; br++) {
+			for (let bc = 0; bc < 3; bc++) {
+				const box = [];
+				for (let r = 0; r < 3; r++) {
+					for (let c = 0; c < 3; c++) {
+						box.push((br * 3 + r) * 9 + (bc * 3 + c));
+					}
+				}
+				for (let d = 1; d <= 9; d++) {
+					const hits = box.filter((i) => grid[i] === 0 && cands[i].indexOf(d) >= 0);
+					if (hits.length < 2) {
+						continue;
+					}
+					const rows = hits.map((i) => Math.floor(i / 9));
+					const cols = hits.map((i) => i % 9);
+					if (rows.every((r) => r === rows[0])) {
+						const row = rows[0];
+						for (let c = 0; c < 9; c++) {
+							const i = row * 9 + c;
+							if (box.indexOf(i) < 0 && grid[i] === 0 && cands[i].indexOf(d) >= 0) {
+								cands[i] = cands[i].filter((n) => n !== d);
+								found = true;
+							}
+						}
+					}
+					if (cols.every((c) => c === cols[0])) {
+						const col = cols[0];
+						for (let r = 0; r < 9; r++) {
+							const i = r * 9 + col;
+							if (box.indexOf(i) < 0 && grid[i] === 0 && cands[i].indexOf(d) >= 0) {
+								cands[i] = cands[i].filter((n) => n !== d);
+								found = true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return found;
+	}
+
+	function applyClaiming() {
+		let found = false;
+		for (let line = 0; line < 9; line++) {
+			for (let d = 1; d <= 9; d++) {
+				const rowHits = [];
+				const colHits = [];
+				for (let k = 0; k < 9; k++) {
+					if (grid[line * 9 + k] === 0 && cands[line * 9 + k].indexOf(d) >= 0) {
+						rowHits.push(line * 9 + k);
+					}
+					if (grid[k * 9 + line] === 0 && cands[k * 9 + line].indexOf(d) >= 0) {
+						colHits.push(k * 9 + line);
+					}
+				}
+				if (rowHits.length >= 2) {
+					const boxes = rowHits.map((i) => Math.floor(Math.floor(i / 9) / 3) * 3 + Math.floor((i % 9) / 3));
+					if (boxes.every((b) => b === boxes[0])) {
+						const boxRow = Math.floor(boxes[0] / 3) * 3;
+						const boxCol = (boxes[0] % 3) * 3;
+						for (let r = 0; r < 3; r++) {
+							for (let c = 0; c < 3; c++) {
+								const i = (boxRow + r) * 9 + (boxCol + c);
+								if (Math.floor(i / 9) !== line && grid[i] === 0 && cands[i].indexOf(d) >= 0) {
+									cands[i] = cands[i].filter((n) => n !== d);
+									found = true;
+								}
+							}
+						}
+					}
+				}
+				if (colHits.length >= 2) {
+					const boxes = colHits.map((i) => Math.floor(Math.floor(i / 9) / 3) * 3 + Math.floor((i % 9) / 3));
+					if (boxes.every((b) => b === boxes[0])) {
+						const boxRow = Math.floor(boxes[0] / 3) * 3;
+						const boxCol = (boxes[0] % 3) * 3;
+						for (let r = 0; r < 3; r++) {
+							for (let c = 0; c < 3; c++) {
+								const i = (boxRow + r) * 9 + (boxCol + c);
+								if (i % 9 !== line && grid[i] === 0 && cands[i].indexOf(d) >= 0) {
+									cands[i] = cands[i].filter((n) => n !== d);
+									found = true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return found;
+	}
+
+	function applyNakedTriples() {
+		let found = false;
+		for (const unit of units) {
+			const empties = unit.filter((i) => grid[i] === 0);
+			for (let a = 0; a < empties.length; a++) {
+				for (let b = a + 1; b < empties.length; b++) {
+					for (let c = b + 1; c < empties.length; c++) {
+						const cells = [empties[a], empties[b], empties[c]];
+						const union = [];
+						for (const i of cells) {
+							for (const n of cands[i]) {
+								if (union.indexOf(n) < 0) {
+									union.push(n);
+								}
+							}
+						}
+						if (union.length > 3) {
+							continue;
+						}
+						for (const k of unit) {
+							if (cells.indexOf(k) >= 0 || grid[k] !== 0) {
+								continue;
+							}
+							const before = cands[k].length;
+							cands[k] = cands[k].filter((n) => union.indexOf(n) < 0);
+							if (cands[k].length !== before) {
+								found = true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return found;
+	}
+
+	function applyHiddenTriples() {
+		let found = false;
+		for (const unit of units) {
+			const empties = unit.filter((i) => grid[i] === 0);
+			for (let d1 = 1; d1 <= 9; d1++) {
+				for (let d2 = d1 + 1; d2 <= 9; d2++) {
+					for (let d3 = d2 + 1; d3 <= 9; d3++) {
+						const pos = [];
+						for (const i of empties) {
+							if (cands[i].indexOf(d1) >= 0 || cands[i].indexOf(d2) >= 0 || cands[i].indexOf(d3) >= 0) {
+								pos.push(i);
+							}
+						}
+						if (pos.length > 3) {
+							continue;
+						}
+						for (const i of pos) {
+							const before = cands[i].length;
+							cands[i] = cands[i].filter((n) => n === d1 || n === d2 || n === d3);
+							if (cands[i].length !== before) {
+								found = true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return found;
+	}
+
+	function applyXWing() {
+		let found = false;
+		for (let d = 1; d <= 9; d++) {
+			const rowCols = [];
+			for (let r = 0; r < 9; r++) {
+				const cols = [];
+				for (let c = 0; c < 9; c++) {
+					if (grid[r * 9 + c] === 0 && cands[r * 9 + c].indexOf(d) >= 0) {
+						cols.push(c);
+					}
+				}
+				rowCols.push(cols);
+			}
+			for (let r1 = 0; r1 < 9; r1++) {
+				if (rowCols[r1].length !== 2) {
+					continue;
+				}
+				for (let r2 = r1 + 1; r2 < 9; r2++) {
+					if (rowCols[r2].length !== 2 || !sameSet(rowCols[r1], rowCols[r2])) {
+						continue;
+					}
+					const c1 = rowCols[r1][0];
+					const c2 = rowCols[r1][1];
+					for (let r = 0; r < 9; r++) {
+						if (r === r1 || r === r2) {
+							continue;
+						}
+						for (const c of [c1, c2]) {
+							if (grid[r * 9 + c] === 0 && cands[r * 9 + c].indexOf(d) >= 0) {
+								cands[r * 9 + c] = cands[r * 9 + c].filter((n) => n !== d);
+								found = true;
+							}
+						}
+					}
+				}
+			}
+
+			const colRows = [];
+			for (let c = 0; c < 9; c++) {
+				const rows = [];
+				for (let r = 0; r < 9; r++) {
+					if (grid[r * 9 + c] === 0 && cands[r * 9 + c].indexOf(d) >= 0) {
+						rows.push(r);
+					}
+				}
+				colRows.push(rows);
+			}
+			for (let c1 = 0; c1 < 9; c1++) {
+				if (colRows[c1].length !== 2) {
+					continue;
+				}
+				for (let c2 = c1 + 1; c2 < 9; c2++) {
+					if (colRows[c2].length !== 2 || !sameSet(colRows[c1], colRows[c2])) {
+						continue;
+					}
+					const r1 = colRows[c1][0];
+					const r2 = colRows[c1][1];
+					for (let c = 0; c < 9; c++) {
+						if (c === c1 || c === c2) {
+							continue;
+						}
+						for (const r of [r1, r2]) {
+							if (grid[r * 9 + c] === 0 && cands[r * 9 + c].indexOf(d) >= 0) {
+								cands[r * 9 + c] = cands[r * 9 + c].filter((n) => n !== d);
+								found = true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return found;
+	}
+
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (let i = 0; i < 81; i++) {
+			if (grid[i] === 0 && cands[i].length === 1) {
+				place(i, cands[i][0]);
+				changed = true;
+			}
+		}
+		if (applyHiddenSingles()) {
+			maxTier = Math.max(maxTier, 2);
+			changed = true;
+		}
+		if (changed) {
+			continue;
+		}
+		if (applyPointing() || applyClaiming() || applyNakedPairs() || applyHiddenPairs()) {
+			maxTier = Math.max(maxTier, 3);
+			changed = true;
+			continue;
+		}
+		if (applyNakedTriples() || applyHiddenTriples()) {
+			maxTier = Math.max(maxTier, 3);
+			changed = true;
+			continue;
+		}
+		if (applyXWing()) {
+			maxTier = Math.max(maxTier, 4);
+			changed = true;
+			continue;
+		}
+	}
+
+	for (let i = 0; i < 81; i++) {
+		if (grid[i] === 0) {
+			return Math.max(maxTier, 4);
+		}
+	}
+	return maxTier;
+}
+
+function generatePuzzle(difficulty) {
+	const key = TIER_BY_DIFFICULTY[difficulty] ? difficulty : 'medium';
+	const target = TIER_BY_DIFFICULTY[key];
+
+	for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
 		const solution = generateSolvedGrid();
 		const puzzle = solution.slice();
 		const cells = shuffle(Array.from({ length: 81 }, (_, i) => i));
-		let removed = 0;
 
 		for (const pos of cells) {
-			if (81 - removed <= target) {
+			if (countFilled(puzzle) <= MIN_CLUES) {
 				break;
 			}
 			const backup = puzzle[pos];
 			puzzle[pos] = 0;
-			if (countSolutions(puzzle, 2) === 1) {
-				removed++;
-			} else {
+			if (countSolutions(puzzle, 2) !== 1) {
+				puzzle[pos] = backup;
+				continue;
+			}
+			if (classifyTier(puzzle) > target) {
 				puzzle[pos] = backup;
 			}
 		}
 
-		if (81 - removed === target) {
+		const clues = countFilled(puzzle);
+		if (classifyTier(puzzle) === target && clues >= MIN_CLUES && clues <= MAX_CLUES) {
 			return {
 				difficulty: key,
-				clues: target,
+				tier: target,
+				clues: clues,
 				puzzle: puzzle,
 				solution: solution
 			};
 		}
 	}
+
+	throw new Error('无法生成目标难度: ' + key);
 }
 
 function validatePuzzle(puzzle, solution, difficulty) {
-	const clueCount = puzzle.filter(function (v) {
-		return v !== 0;
-	}).length;
-	const expected = DIFFICULTY_CLUES[difficulty];
+	const clueCount = countFilled(puzzle);
 
-	if (expected !== undefined && clueCount !== expected) {
-		return { valid: false, reason: '提示数不符：' + clueCount + ' / ' + expected };
+	if (difficulty !== undefined && (clueCount < MIN_CLUES || clueCount > MAX_CLUES)) {
+		return { valid: false, reason: '提示数超出范围：' + clueCount };
 	}
 
 	for (let i = 0; i < 81; i++) {
@@ -218,8 +655,11 @@ function validatePuzzle(puzzle, solution, difficulty) {
 }
 
 module.exports = {
-	DIFFICULTY_CLUES: DIFFICULTY_CLUES,
+	TIER_BY_DIFFICULTY: TIER_BY_DIFFICULTY,
+	MIN_CLUES: MIN_CLUES,
+	MAX_CLUES: MAX_CLUES,
 	generatePuzzle: generatePuzzle,
 	countSolutions: countSolutions,
+	classifyTier: classifyTier,
 	validatePuzzle: validatePuzzle
 };
