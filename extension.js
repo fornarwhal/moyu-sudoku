@@ -404,7 +404,7 @@ class SudokuProvider {
 	}
 	.toolbar-buttons {
 		display: grid;
-		grid-template-columns: repeat(5, 1fr);
+		grid-template-columns: repeat(6, 1fr);
 		gap: 6px;
 	}
 	.toolbar-buttons button {
@@ -457,6 +457,9 @@ class SudokuProvider {
 		color: var(--vscode-list-activeSelectionForeground, #ffffff);
 	}
 	.cell.same {
+		background: var(--vscode-editor-selectionBackground, rgba(38, 79, 120, 0.4));
+	}
+	.cell.hint {
 		background: var(--vscode-editor-selectionBackground, rgba(38, 79, 120, 0.4));
 	}
 	.cell.error {
@@ -556,6 +559,7 @@ class SudokuProvider {
 				<button id="highlightBtn">高亮</button>
 				<button id="noteBtn">批注</button>
 				<button id="checkBtn">查错</button>
+				<button id="hintBtn">提示</button>
 				<button id="backBtn">返回</button>
 			</div>
 		</div>
@@ -577,6 +581,7 @@ class SudokuProvider {
 	let mode = 'dashboard';
 	let state = null;
 	let selected = -1;
+	let hintIndex = -1;
 	let noteMode = false;
 	let sameHighlight = true;
 	let checkErrors = false;
@@ -604,6 +609,7 @@ class SudokuProvider {
 	const highlightBtn = document.getElementById('highlightBtn');
 	const noteBtn = document.getElementById('noteBtn');
 	const checkBtn = document.getElementById('checkBtn');
+	const hintBtn = document.getElementById('hintBtn');
 	const difficultyEl = document.getElementById('difficulty');
 	const panelBtn = document.getElementById('panelBtn');
 	const newGameBtn = document.getElementById('newGameBtn');
@@ -664,6 +670,7 @@ class SudokuProvider {
 			resetConfirm();
 		}
 		selected = -1;
+		hintIndex = -1;
 		completed = state ? isComplete() : false;
 		updateTimer();
 		render();
@@ -835,6 +842,7 @@ class SudokuProvider {
 		const prev = history.pop();
 		state.values = prev.values;
 		state.notes = prev.notes;
+		hintIndex = -1;
 		afterEdit();
 	}
 
@@ -846,6 +854,7 @@ class SudokuProvider {
 		const next = redoStack.pop();
 		state.values = next.values;
 		state.notes = next.notes;
+		hintIndex = -1;
 		afterEdit();
 	}
 
@@ -954,6 +963,9 @@ class SudokuProvider {
 			if (sameHighlight && selected >= 0 && current !== 0 && state.values[i] === current) {
 				cell.classList.add('same');
 			}
+			if (sameHighlight && hintIndex >= 0 && i === hintIndex) {
+				cell.classList.add('hint');
+			}
 
 			frag.appendChild(cell);
 		}
@@ -963,6 +975,7 @@ class SudokuProvider {
 
 	function selectCell(i) {
 		selected = i;
+		hintIndex = -1;
 		render();
 	}
 
@@ -973,6 +986,7 @@ class SudokuProvider {
 		if (state.puzzle[selected] !== 0) {
 			return;
 		}
+		hintIndex = -1;
 		pushHistory();
 		if (noteMode) {
 			const arr = (state.notes[selected] || []).slice();
@@ -997,10 +1011,77 @@ class SudokuProvider {
 		if (!state || selected < 0 || state.puzzle[selected] !== 0) {
 			return;
 		}
+		hintIndex = -1;
 		pushHistory();
 		state.values[selected] = 0;
 		state.notes[selected] = [];
 		afterEdit();
+	}
+
+	function computeCandidates(i) {
+		if (!state) {
+			return [];
+		}
+		const row = Math.floor(i / 9);
+		const col = i % 9;
+		const used = {};
+		for (let c = 0; c < 9; c++) {
+			const v = state.values[row * 9 + c];
+			if (v) {
+				used[v] = true;
+			}
+		}
+		for (let r = 0; r < 9; r++) {
+			const v = state.values[r * 9 + col];
+			if (v) {
+				used[v] = true;
+			}
+		}
+		const boxRow = Math.floor(row / 3) * 3;
+		const boxCol = Math.floor(col / 3) * 3;
+		for (let r = 0; r < 3; r++) {
+			for (let c = 0; c < 3; c++) {
+				const v = state.values[(boxRow + r) * 9 + (boxCol + c)];
+				if (v) {
+					used[v] = true;
+				}
+			}
+		}
+		const result = [];
+		for (let n = 1; n <= 9; n++) {
+			if (!used[n]) {
+				result.push(n);
+			}
+		}
+		return result;
+	}
+
+	function giveHint() {
+		if (!state || completed) {
+			return;
+		}
+		let best = -1;
+		let bestLen = 10;
+		for (let i = 0; i < 81; i++) {
+			if (state.puzzle[i] !== 0 || state.values[i] !== 0) {
+				continue;
+			}
+			const cands = computeCandidates(i);
+			if (cands.length < bestLen) {
+				bestLen = cands.length;
+				best = i;
+				if (bestLen === 1) {
+					break;
+				}
+			}
+		}
+		if (best === -1) {
+			return;
+		}
+		selected = best;
+		hintIndex = best;
+		render();
+		statusEl.textContent = '试试推理这一格';
 	}
 
 	function moveSelection(dr, dc) {
@@ -1052,6 +1133,10 @@ class SudokuProvider {
 			noteMode = !noteMode;
 			noteBtn.classList.toggle('active', noteMode);
 			noteBtn.textContent = noteMode ? '批注（开）' : '批注';
+			return;
+		}
+		if (e.key === 'h' || e.key === 'H') {
+			giveHint();
 			return;
 		}
 		if (e.key >= '1' && e.key <= '9') {
@@ -1155,6 +1240,9 @@ class SudokuProvider {
 		updateCheckButton();
 		save();
 		render();
+	});
+	hintBtn.addEventListener('click', function () {
+		giveHint();
 	});
 
 	const boardResizeObserver = new ResizeObserver(function () {

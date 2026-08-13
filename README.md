@@ -11,6 +11,7 @@ GitHub 仓库 / Repository: https://github.com/fornarwhal/moyu-sudoku
 - 独立可缩放窗口 / Resizable standalone window
 - 撤销 / 重做 / Undo & redo
 - 笔记与查错 / Notes & error check
+- 提示高亮（不显示答案）/ Hint highlight (no answer revealed)
 - 自动存档 / Auto save
 - 跟随 VSCode 主题 / Theme-aware UI
 
@@ -33,6 +34,7 @@ GitHub 仓库 / Repository: https://github.com/fornarwhal/moyu-sudoku
 | 返回看板 Back to dashboard | `Esc`（或设置中的 hideKey） |
 | 填数 Enter number | `1-9` |
 | 笔记 Notes | `N` |
+| 提示 Hint | `H` |
 | 清除 Clear | `Delete` / `Backspace` / `0` |
 | 撤销 / 重做 Undo / Redo | `Ctrl+Z` / `Ctrl+Y` |
 
