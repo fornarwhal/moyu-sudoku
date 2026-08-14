@@ -414,11 +414,11 @@ class SudokuProvider {
 		flex: 1;
 		min-width: 0;
 	}
-	.toolbar-buttons {
-		display: grid;
-		grid-template-columns: repeat(6, 1fr);
-		gap: 6px;
-	}
+    	.toolbar-buttons {
+    		display: grid;
+    		grid-template-columns: repeat(7, 1fr);
+    		gap: 6px;
+    	}
 	.toolbar-buttons button {
 		text-align: center;
 		padding: 4px 2px;
@@ -576,6 +576,7 @@ class SudokuProvider {
 				<button id="noteBtn">批注</button>
 				<button id="checkBtn">查错</button>
 				<button id="hintBtn">提示</button>
+				<button id="answerBtn">答案</button>
 				<button id="backBtn">返回</button>
 			</div>
 		</div>
@@ -629,6 +630,7 @@ class SudokuProvider {
 	const noteBtn = document.getElementById('noteBtn');
 	const checkBtn = document.getElementById('checkBtn');
 	const hintBtn = document.getElementById('hintBtn');
+	const answerBtn = document.getElementById('answerBtn');
 	const difficultyEl = document.getElementById('difficulty');
 	const panelBtn = document.getElementById('panelBtn');
 	const newGameBtn = document.getElementById('newGameBtn');
@@ -683,6 +685,7 @@ class SudokuProvider {
 		checkErrors = state ? state.checkErrors : false;
 		updateHighlightButton();
 		updateCheckButton();
+		updateAnswerVisibility();
 		if (fresh) {
 			history = [];
 			redoStack = [];
@@ -1174,6 +1177,65 @@ class SudokuProvider {
 		statusEl.textContent = '试试推理这一格';
 	}
 
+	function updateAnswerVisibility() {
+		const difficulty = state ? state.difficulty : '';
+		const show = difficulty === 'medium' || difficulty === 'hard';
+		answerBtn.classList.toggle('hidden', !show);
+	}
+
+	function fillAnswer() {
+		if (!state || completed) {
+			return;
+		}
+		const difficulty = state.difficulty || 'medium';
+		if (difficulty !== 'medium' && difficulty !== 'hard') {
+			return;
+		}
+		let target = -1;
+		if (hintIndex >= 0 && state.puzzle[hintIndex] === 0) {
+			target = hintIndex;
+		} else if (selected >= 0 && state.puzzle[selected] === 0) {
+			target = selected;
+		} else {
+			let best = -1;
+			let bestLen = 10;
+			for (let i = 0; i < 81; i++) {
+				if (state.puzzle[i] !== 0 || state.values[i] !== 0) {
+					continue;
+				}
+				const cands = computeCandidates(i);
+				if (cands.length < bestLen) {
+					bestLen = cands.length;
+					best = i;
+					if (bestLen === 1) {
+						break;
+					}
+				}
+			}
+			target = best;
+		}
+		if (target < 0) {
+			return;
+		}
+		if (state.values[target] === state.solution[target]) {
+			selected = target;
+			hintIndex = -1;
+			render();
+			statusEl.textContent = '这一格已经是对的';
+			return;
+		}
+		selected = target;
+		hintIndex = -1;
+		render();
+		noteMode = false;
+		noteBtn.classList.remove('active');
+		noteBtn.textContent = '批注';
+		inputNumber(state.solution[target]);
+		if (!completed) {
+			statusEl.textContent = '已填入答案';
+		}
+	}
+
 	function moveSelection(dr, dc) {
 		if (selected < 0) {
 			selected = 0;
@@ -1283,6 +1345,7 @@ class SudokuProvider {
 		} else if (msg.type === 'difficulty') {
 			if (msg.difficulty) {
 				difficultyEl.value = msg.difficulty;
+				updateAnswerVisibility();
 			}
 		}
 	});
@@ -1337,6 +1400,9 @@ class SudokuProvider {
 	});
 	hintBtn.addEventListener('click', function () {
 		giveHint();
+	});
+	answerBtn.addEventListener('click', function () {
+		fillAnswer();
 	});
 
 	const boardResizeObserver = new ResizeObserver(function () {

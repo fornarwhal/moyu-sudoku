@@ -9,7 +9,7 @@ GitHub: [fornarwhal/moyu-sudoku](https://github.com/fornarwhal/moyu-sudoku) · M
 
 - 四档技巧难度：唯一数 / 隐藏单数 / 数对区块 / 试数推理
 - 伪装看板 + 老板键（`Ctrl+Alt+S` 切换，`Esc` 隐藏）
-- 撤销 / 重做、笔记 / 查错、提示高亮
+- 撤销 / 重做、笔记 / 查错、提示高亮 + 答案（仅中等/困难）
 - 自动存档，数据仅存本地
 
 ## 截图

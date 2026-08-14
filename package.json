@@ -2,7 +2,7 @@
 	"name": "moyu-sudoku",
 	"displayName": "摸鱼数独（Moyu Sudoku）",
 	"description": "伪装成项目状态看板的 VSCode 数独小游戏，摸鱼不露痕迹 / A stealth sudoku disguised as a project status dashboard",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"publisher": "fornarwhal",
 	"license": "MIT",
 	"icon": "media/icon.png",
